@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <Property name="log_path">logs</Property>
+        <property name="server_name" value="${sys:service_name}"/>
+    </Properties>
+    <Appenders>
+        <Console name="SYS_OUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} -%msg%n"/>
+        </Console>
+        <RollingFile name="INFO_FILE" fileName="${log_path}/${server_name}-server/info.log" filePattern="${log_path}/${server_name}-server/info-%d{yyyyMMdd}-%i.log.gz">
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} -%msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="max" max="60"/>
+        </RollingFile>
+        <RollingFile name="ERROR_FILE" fileName="${log_path}/${server_name}-server/error.log" filePattern="${log_path}/${server_name}-server/error-%d{yyyyMMdd}-%i.log.gz">
+            <ThresholdFilter level="ERROR"/>
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} -%msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="max" max="60"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <!-- Root  -->
+        <Root level="INFO">
+            <AppenderRef ref="SYS_OUT"/>
+            <AppenderRef ref="INFO_FILE"/>
+            <AppenderRef ref="ERROR_FILE"/>
+        </Root>
+        <!-- http -->
+        <Logger name="org.apache.http" level="ERROR" />
+        <!-- Spring -->
+        <Logger name="org.springframework" level="ERROR" />
+        <Logger name="org.springframework.boot.autoconfigure.logging" level="INFO"/>
+
+    </Loggers>
+</Configuration>

@@ -1,0 +1,18 @@
+server:
+  port: 8888
+  tomcat:
+    connection-timeout: 30000
+
+spring:
+  profiles:
+    active: dev
+  application:
+    name: call-analyzer
+  main:
+    allow-bean-definition-overriding: false
+
+logging:
+  path: logs/${spring.application.name}
+
+swagger2:
+  enable: true
