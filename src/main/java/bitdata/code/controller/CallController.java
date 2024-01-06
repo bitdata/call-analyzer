@@ -1,6 +1,8 @@
 package bitdata.code.controller;
 
+import bitdata.code.entity.SourceLine;
 import bitdata.code.service.CallParseService;
+import bitdata.code.util.ClassMethod;
 import io.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @RestController
@@ -32,5 +35,11 @@ public class CallController {
         service.parseJars(jarFileNames);
         return true;
     }
+
+    @PostMapping("/get-outer-callers")
+    public Collection<ClassMethod> getOuterCallers(@RequestBody List<SourceLine> sourceLines) throws IOException {
+        return service.getOuterCallers(sourceLines);
+    }
+
 
 }

@@ -3,19 +3,18 @@ package bitdata.code.util;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ClassMethod {
 
     private String className;
 
+    private String methodName;
+
     private String signature;
 
-    private static Pattern pattern = Pattern.compile("^[^\\\\(]");
-
-    public ClassMethod(String className, String signature) {
+    public ClassMethod(String className, String methodName, String signature) {
         this.className = className;
+        this.methodName = methodName;
         this.signature = signature;
     }
 
@@ -28,8 +27,7 @@ public class ClassMethod {
     }
 
     public String getMethodName() {
-        Matcher matcher = pattern.matcher(signature);
-        return matcher.group();
+        return methodName;
     }
 
 
@@ -41,11 +39,12 @@ public class ClassMethod {
         }
         ClassMethod m = (ClassMethod) o;
         return StringUtils.equals(this.className, m.className) &&
+                StringUtils.equals(this.methodName, m.methodName) &&
                 StringUtils.equals(this.signature, m.signature);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getClassName(), getSignature());
+        return Objects.hash(getClassName(), getMethodName(), getSignature());
     }
 }

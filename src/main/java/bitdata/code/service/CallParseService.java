@@ -1,5 +1,6 @@
 package bitdata.code.service;
 
+import bitdata.code.entity.SourceLine;
 import bitdata.code.util.ClassMethod;
 import bitdata.code.util.InvokeRepository;
 import bitdata.code.util.SourceRepository;
@@ -9,12 +10,13 @@ import org.apache.bcel.generic.ConstantPoolGen;
 import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.InvokeInstruction;
 import org.apache.bcel.generic.MethodGen;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -31,6 +33,20 @@ public class CallParseService {
         parseInvoke(jarFileNames);
     }
 
+    public Collection<ClassMethod> getOuterCallers(Collection<SourceLine> sourceLines) {
+        Set<ClassMethod> methods = new HashSet<>();
+        for (SourceLine sourceLine : sourceLines) {
+            String className = sourceRepository.getClassName(sourceLine.getSourceFilePath());
+            if (!StringUtils.isEmpty(className)) {
+                ClassMethod method = sourceRepository.getMethod(className, sourceLine.getLine());
+                if (method != null) {
+                    methods.add(method);
+                }
+            }
+        }
+        return invokeRepository.getOuterCallers(methods);
+    }
+
     private void parseSource(Collection<String> jarFileNames) throws IOException {
         sourceRepository = new SourceRepository();
         parse(jarFileNames, (javaClass) -> {
@@ -44,7 +60,7 @@ public class CallParseService {
                             line = lineNumber.getLineNumber();
                         }
                     }
-                    sourceRepository.addMethod(javaClass.getClassName(), method.getSignature(), line);
+                    sourceRepository.addMethod(new ClassMethod(javaClass.getClassName(), method.getName(), method.getSignature()), line);
                 }
             }
         });
@@ -53,10 +69,19 @@ public class CallParseService {
     private void parseInvoke(Collection<String> jarFileNames) throws IOException {
         invokeRepository = new InvokeRepository();
         parse(jarFileNames, (javaClass) -> {
-            invokeRepository.addClass(javaClass.getClassName(), javaClass.getSuperclassName(), javaClass.getInterfaceNames());
+            List<String> interfaceNames = new ArrayList<>();
+            if (sourceRepository.contains(javaClass.getSuperclassName())) {
+                interfaceNames.add(javaClass.getSuperclassName());
+            }
+            for (String interfaceName : javaClass.getInterfaceNames()) {
+                if (sourceRepository.contains(interfaceName)) {
+                    interfaceNames.add(interfaceName);
+                }
+            }
+            invokeRepository.addClass(javaClass.getClassName(), interfaceNames);
             ConstantPoolGen constantPoolGen = new ConstantPoolGen(javaClass.getConstantPool());
             for (Method method : javaClass.getMethods()) {
-                ClassMethod classMethod = new ClassMethod(javaClass.getClassName(), method.getSignature());
+                ClassMethod classMethod = new ClassMethod(javaClass.getClassName(), method.getName(), method.getSignature());
                 MethodGen methodGen = new MethodGen(method, javaClass.getClassName(), constantPoolGen);
                 if (methodGen.getInstructionList() == null) {
                     continue;
@@ -68,8 +93,9 @@ public class CallParseService {
                         InvokeInstruction invokeInstruction = (InvokeInstruction) instructionHandle.getInstruction();
                         String className = invokeInstruction.getReferenceType(constantPoolGen).toString();
                         if (sourceRepository.contains(className)) {
+                            String methodName = invokeInstruction.getMethodName(constantPoolGen);
                             String signature = invokeInstruction.getSignature(constantPoolGen);
-                            invokeRepository.addInvoke(classMethod, new ClassMethod(className, signature));
+                            invokeRepository.addInvoke(classMethod, new ClassMethod(className, methodName, signature));
                         }
                     }
                     instructionHandle = instructionHandle.getNext();
