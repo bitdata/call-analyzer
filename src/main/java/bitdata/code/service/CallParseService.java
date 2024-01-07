@@ -2,14 +2,12 @@ package bitdata.code.service;
 
 import bitdata.code.entity.SourceLine;
 import bitdata.code.util.ClassMethod;
+import bitdata.code.util.BootstrapMethodUtil;
 import bitdata.code.util.InvokeRepository;
 import bitdata.code.util.SourceRepository;
 import org.apache.bcel.Const;
 import org.apache.bcel.classfile.*;
-import org.apache.bcel.generic.ConstantPoolGen;
-import org.apache.bcel.generic.InstructionHandle;
-import org.apache.bcel.generic.InvokeInstruction;
-import org.apache.bcel.generic.MethodGen;
+import org.apache.bcel.generic.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -90,18 +88,42 @@ public class CallParseService {
                 while (instructionHandle != null && instructionHandle.getInstruction() != null) {
                     short opCode = instructionHandle.getInstruction().getOpcode();
                     if (opCode >= Const.INVOKEVIRTUAL && opCode <= Const.INVOKEINTERFACE) {
-                        InvokeInstruction invokeInstruction = (InvokeInstruction) instructionHandle.getInstruction();
-                        String className = invokeInstruction.getReferenceType(constantPoolGen).toString();
-                        if (sourceRepository.contains(className)) {
-                            String methodName = invokeInstruction.getMethodName(constantPoolGen);
-                            String signature = invokeInstruction.getSignature(constantPoolGen);
-                            invokeRepository.addInvoke(classMethod, new ClassMethod(className, methodName, signature));
-                        }
+                        parseInvokeVirtual(constantPoolGen, classMethod, instructionHandle);
+                    } else if (opCode == Const.INVOKEDYNAMIC) {
+                        parseInvokeDynamic(javaClass, constantPoolGen, classMethod, instructionHandle);
                     }
                     instructionHandle = instructionHandle.getNext();
                 }
             }
         });
+    }
+
+    private void parseInvokeVirtual(ConstantPoolGen constantPoolGen, ClassMethod classMethod, InstructionHandle instructionHandle) {
+        InvokeInstruction invokeInstruction = (InvokeInstruction) instructionHandle.getInstruction();
+        String className = invokeInstruction.getReferenceType(constantPoolGen).toString();
+        if (sourceRepository.contains(className)) {
+            String methodName = invokeInstruction.getMethodName(constantPoolGen);
+            String signature = invokeInstruction.getSignature(constantPoolGen);
+            invokeRepository.addInvoke(classMethod, new ClassMethod(className, methodName, signature));
+        }
+    }
+
+    private void parseInvokeDynamic(JavaClass javaClass, ConstantPoolGen constantPoolGen, ClassMethod classMethod, InstructionHandle instructionHandle) {
+        INVOKEDYNAMIC invokeDynamic = (INVOKEDYNAMIC) instructionHandle.getInstruction();
+        Constant constant = constantPoolGen.getConstant(invokeDynamic.getIndex());
+        if (!(constant instanceof ConstantInvokeDynamic)) {
+            String className = invokeDynamic.getType(constantPoolGen).toString();
+            String methodName = invokeDynamic.getMethodName(constantPoolGen);
+            String signature = invokeDynamic.getSignature(constantPoolGen);
+            invokeRepository.addInvoke(classMethod, new ClassMethod(className, methodName, signature));
+            return;
+        }
+        ConstantInvokeDynamic cid = (ConstantInvokeDynamic) constant;
+        BootstrapMethod bootstrapMethod = BootstrapMethodUtil.getBootstrapMethod(javaClass, cid.getBootstrapMethodAttrIndex());
+        ClassMethod dynamicMethod = BootstrapMethodUtil.getMethodFromBootstrapMethod(javaClass, bootstrapMethod);
+        if (dynamicMethod != null) {
+            invokeRepository.addInvoke(classMethod, dynamicMethod);
+        }
     }
 
     private void parse(Collection<String> jarFileNames, Consumer<JavaClass> parseClass) throws IOException {
@@ -120,4 +142,5 @@ public class CallParseService {
             }
         }
     }
+
 }
