@@ -16,7 +16,6 @@ public class InvokeRepository {
     }
 
     public void addInvoke(ClassMethod method, ClassMethod invokeMethod) {
-        System.out.println(method.getClassName()+":"+method.getMethodName()+"->"+invokeMethod.getClassName()+":"+invokeMethod.getMethodName());
         callerMap.put(invokeMethod, method);
     }
 

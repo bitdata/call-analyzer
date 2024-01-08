@@ -20,7 +20,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
 @Service
-public class CallParseService {
+public class ParseService {
 
     private SourceRepository sourceRepository;
 
