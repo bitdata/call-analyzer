@@ -26,7 +26,16 @@ public class ParseService {
 
     private InvokeRepository invokeRepository;
 
+    private Collection<String> outerAttributes;
+
+    private Set<ClassMethod> matchedMethods = new HashSet<>();
+
+    public void setOuterAttributes(Collection<String> outerAttributes) {
+        this.outerAttributes = new ArrayList<>(outerAttributes);
+    }
+
     public void parseJars(Collection<String> jarFileNames) throws IOException {
+        matchedMethods.clear();
         parseSource(jarFileNames);
         parseInvoke(jarFileNames);
     }
@@ -42,7 +51,9 @@ public class ParseService {
                 }
             }
         }
-        return invokeRepository.getOuterCallers(methods);
+        Collection<ClassMethod> outerCallers = invokeRepository.getOuterCallers(methods);
+        outerCallers.retainAll(matchedMethods);
+        return outerCallers;
     }
 
     private void parseSource(Collection<String> jarFileNames) throws IOException {
@@ -80,22 +91,37 @@ public class ParseService {
             ConstantPoolGen constantPoolGen = new ConstantPoolGen(javaClass.getConstantPool());
             for (Method method : javaClass.getMethods()) {
                 ClassMethod classMethod = new ClassMethod(javaClass.getClassName(), method.getName(), method.getSignature());
-                MethodGen methodGen = new MethodGen(method, javaClass.getClassName(), constantPoolGen);
-                if (methodGen.getInstructionList() == null) {
-                    continue;
-                }
-                InstructionHandle instructionHandle = methodGen.getInstructionList().getStart();
-                while (instructionHandle != null && instructionHandle.getInstruction() != null) {
-                    short opCode = instructionHandle.getInstruction().getOpcode();
-                    if (opCode >= Const.INVOKEVIRTUAL && opCode <= Const.INVOKEINTERFACE) {
-                        parseInvokeVirtual(constantPoolGen, classMethod, instructionHandle);
-                    } else if (opCode == Const.INVOKEDYNAMIC) {
-                        parseInvokeDynamic(javaClass, constantPoolGen, classMethod, instructionHandle);
-                    }
-                    instructionHandle = instructionHandle.getNext();
-                }
+                parseAttribute(classMethod, method);
+                parseInvoke(javaClass, constantPoolGen, classMethod, method);
             }
         });
+    }
+
+    private void parseAttribute(ClassMethod classMethod, Method method) {
+        for (AnnotationEntry entry : method.getAnnotationEntries()) {
+            String[] fields = entry.getAnnotationType().split("/");
+            String annotation = fields[fields.length - 1].replace(";", "");
+            if (outerAttributes.contains(annotation)) {
+                matchedMethods.add(classMethod);
+            }
+        }
+    }
+
+    private void parseInvoke(JavaClass javaClass, ConstantPoolGen constantPoolGen, ClassMethod classMethod, Method method) {
+        MethodGen methodGen = new MethodGen(method, javaClass.getClassName(), constantPoolGen);
+        if (methodGen.getInstructionList() == null) {
+            return;
+        }
+        InstructionHandle instructionHandle = methodGen.getInstructionList().getStart();
+        while (instructionHandle != null && instructionHandle.getInstruction() != null) {
+            short opCode = instructionHandle.getInstruction().getOpcode();
+            if (opCode >= Const.INVOKEVIRTUAL && opCode <= Const.INVOKEINTERFACE) {
+                parseInvokeVirtual(constantPoolGen, classMethod, instructionHandle);
+            } else if (opCode == Const.INVOKEDYNAMIC) {
+                parseInvokeDynamic(javaClass, constantPoolGen, classMethod, instructionHandle);
+            }
+            instructionHandle = instructionHandle.getNext();
+        }
     }
 
     private void parseInvokeVirtual(ConstantPoolGen constantPoolGen, ClassMethod classMethod, InstructionHandle instructionHandle) {
@@ -120,9 +146,11 @@ public class ParseService {
         }
         ConstantInvokeDynamic cid = (ConstantInvokeDynamic) constant;
         BootstrapMethod bootstrapMethod = BootstrapMethodUtil.getBootstrapMethod(javaClass, cid.getBootstrapMethodAttrIndex());
-        ClassMethod dynamicMethod = BootstrapMethodUtil.getMethodFromBootstrapMethod(javaClass, bootstrapMethod);
-        if (dynamicMethod != null) {
-            invokeRepository.addInvoke(classMethod, dynamicMethod);
+        if (bootstrapMethod != null) {
+            ClassMethod dynamicMethod = BootstrapMethodUtil.getMethodFromBootstrapMethod(javaClass, bootstrapMethod);
+            if (dynamicMethod != null) {
+                invokeRepository.addInvoke(classMethod, dynamicMethod);
+            }
         }
     }
 

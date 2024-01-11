@@ -1,15 +1,21 @@
 package bitdata.code.util;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
 
+@ApiModel
 public class ClassMethod {
 
+    @ApiModelProperty("class name")
     private String className;
 
+    @ApiModelProperty("method name")
     private String methodName;
 
+    @ApiModelProperty("method signature")
     private String signature;
 
     public ClassMethod(String className, String methodName, String signature) {
