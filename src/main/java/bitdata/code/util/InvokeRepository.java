@@ -33,6 +33,7 @@ public class InvokeRepository {
             if (callers != null && !callers.isEmpty()) {
                 booleanTree.setFlag(e, true);
                 for (ClassMethod caller : callers) {
+                    booleanTree.addChild(caller, e);
                     if (!booleanTree.contains(caller)) {
                         booleanTree.setFlag(caller, false);
                         queue.add(caller);

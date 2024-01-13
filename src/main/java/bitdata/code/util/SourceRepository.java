@@ -1,5 +1,7 @@
 package bitdata.code.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -20,6 +22,10 @@ public class SourceRepository {
         treeMap.put(line, method);
     }
 
+    public boolean isEmpty() {
+        return pathMap.isEmpty();
+    }
+
     public boolean contains(String className) {
         return lineMap.containsKey(className);
     }
@@ -38,5 +44,29 @@ public class SourceRepository {
             return null;
         }
         return entry.getValue();
+    }
+
+    public String getSourceFileName(String className) {
+        for (Map.Entry<String, String> entry : pathMap.entrySet()) {
+            if (StringUtils.equals(className, entry.getValue())) {
+                String sourceFilePath = entry.getKey();
+                String[] fields = StringUtils.split(sourceFilePath, "/");
+                return fields[fields.length - 1];
+            }
+        }
+        return null;
+    }
+
+    public Integer getLine(ClassMethod method) {
+        TreeMap<Integer, ClassMethod> treeMap = lineMap.get(method.getClassName());
+        if (treeMap == null) {
+            return null;
+        }
+        for (Map.Entry<Integer, ClassMethod> entry : treeMap.entrySet()) {
+            if (entry.getValue().equals(method)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

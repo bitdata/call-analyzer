@@ -1,8 +1,8 @@
 package bitdata.code.service;
 
 import bitdata.code.entity.SourceLine;
-import bitdata.code.util.ClassMethod;
 import bitdata.code.util.BootstrapMethodUtil;
+import bitdata.code.util.ClassMethod;
 import bitdata.code.util.InvokeRepository;
 import bitdata.code.util.SourceRepository;
 import org.apache.bcel.Const;
@@ -26,21 +26,12 @@ public class ParseService {
 
     private InvokeRepository invokeRepository;
 
-    private Collection<String> outerAttributes;
-
-    private Set<ClassMethod> matchedMethods = new HashSet<>();
-
-    public void setOuterAttributes(Collection<String> outerAttributes) {
-        this.outerAttributes = new ArrayList<>(outerAttributes);
-    }
-
     public void parseJars(Collection<String> jarFileNames) throws IOException {
-        matchedMethods.clear();
         parseSource(jarFileNames);
         parseInvoke(jarFileNames);
     }
 
-    public Collection<ClassMethod> getOuterCallers(Collection<SourceLine> sourceLines) {
+    public Collection<String> analyze(Collection<SourceLine> sourceLines) {
         Set<ClassMethod> methods = new HashSet<>();
         for (SourceLine sourceLine : sourceLines) {
             String className = sourceRepository.getClassName(sourceLine.getSourceFilePath());
@@ -51,9 +42,16 @@ public class ParseService {
                 }
             }
         }
-        Collection<ClassMethod> outerCallers = invokeRepository.getOuterCallers(methods);
-        outerCallers.retainAll(matchedMethods);
-        return outerCallers;
+
+        List<String> list = new ArrayList<>();
+        for (ClassMethod method : invokeRepository.getOuterCallers(methods)) {
+            if (!method.getMethodName().startsWith("<")) {
+                String sourceFileName = sourceRepository.getSourceFileName(method.getClassName());
+                Integer line = sourceRepository.getLine(method);
+                list.add(method.getClassName() + "." + method.getMethodName() + "(" + sourceFileName + ":" + line + ")");
+            }
+        }
+        return list;
     }
 
     private void parseSource(Collection<String> jarFileNames) throws IOException {
@@ -101,9 +99,6 @@ public class ParseService {
         for (AnnotationEntry entry : method.getAnnotationEntries()) {
             String[] fields = entry.getAnnotationType().split("/");
             String annotation = fields[fields.length - 1].replace(";", "");
-            if (outerAttributes.contains(annotation)) {
-                matchedMethods.add(classMethod);
-            }
         }
     }
 
