@@ -1,10 +1,7 @@
 package bitdata.code.service;
 
 import bitdata.code.entity.SourceLine;
-import bitdata.code.util.BootstrapMethodUtil;
-import bitdata.code.util.ClassMethod;
-import bitdata.code.util.InvokeRepository;
-import bitdata.code.util.SourceRepository;
+import bitdata.code.util.*;
 import org.apache.bcel.Const;
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.*;
@@ -26,12 +23,18 @@ public class ParseService {
 
     private InvokeRepository invokeRepository;
 
+    private Map<ClassMethod, String> mappingRepository;
+
     public void parseJars(Collection<String> jarFileNames) throws IOException {
         parseSource(jarFileNames);
         parseInvoke(jarFileNames);
     }
 
     public Collection<String> analyze(Collection<SourceLine> sourceLines) {
+        if (sourceRepository == null) {
+            throw new RuntimeException("Please parse jars first");
+        }
+
         Set<ClassMethod> methods = new HashSet<>();
         for (SourceLine sourceLine : sourceLines) {
             String className = sourceRepository.getClassName(sourceLine.getSourceFilePath());
@@ -48,7 +51,12 @@ public class ParseService {
             if (!method.getMethodName().startsWith("<")) {
                 String sourceFileName = sourceRepository.getSourceFileName(method.getClassName());
                 Integer line = sourceRepository.getLine(method);
-                list.add(method.getClassName() + "." + method.getMethodName() + "(" + sourceFileName + ":" + line + ")");
+                String itemText = method.getClassName() + "." + method.getMethodName() + "(" + sourceFileName + ":" + line + ")";
+                String mapping = mappingRepository.get(method);
+                if (!StringUtils.isEmpty(mapping)) {
+                    itemText += " " + mapping;
+                }
+                list.add(itemText);
             }
         }
         return list;
@@ -75,6 +83,7 @@ public class ParseService {
 
     private void parseInvoke(Collection<String> jarFileNames) throws IOException {
         invokeRepository = new InvokeRepository();
+        mappingRepository = new HashMap<>();
         parse(jarFileNames, (javaClass) -> {
             List<String> interfaceNames = new ArrayList<>();
             if (sourceRepository.contains(javaClass.getSuperclassName())) {
@@ -86,20 +95,17 @@ public class ParseService {
                 }
             }
             invokeRepository.addClass(javaClass.getClassName(), interfaceNames);
+            String classMapping = MappingUtil.parseClassMapping(javaClass);
             ConstantPoolGen constantPoolGen = new ConstantPoolGen(javaClass.getConstantPool());
             for (Method method : javaClass.getMethods()) {
                 ClassMethod classMethod = new ClassMethod(javaClass.getClassName(), method.getName(), method.getSignature());
-                parseAttribute(classMethod, method);
+                String methodMapping = MappingUtil.parseMethodMapping(method, classMapping);
+                if (!StringUtils.isEmpty(methodMapping)) {
+                    mappingRepository.put(classMethod, classMapping + methodMapping);
+                }
                 parseInvoke(javaClass, constantPoolGen, classMethod, method);
             }
         });
-    }
-
-    private void parseAttribute(ClassMethod classMethod, Method method) {
-        for (AnnotationEntry entry : method.getAnnotationEntries()) {
-            String[] fields = entry.getAnnotationType().split("/");
-            String annotation = fields[fields.length - 1].replace(";", "");
-        }
     }
 
     private void parseInvoke(JavaClass javaClass, ConstantPoolGen constantPoolGen, ClassMethod classMethod, Method method) {
