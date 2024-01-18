@@ -58,7 +58,7 @@ public class ParseController {
     public Collection<String> analyzeByCommitTime(
             @RequestParam String gitDir,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date commitTime) throws IOException, GitAPIException {
-        List<SourceLine> sourceLines = GitUtil.getDirtyLines(gitDir, "src/main/java/", commitTime);
+        List<SourceLine> sourceLines = GitUtil.getDirtyLines(gitDir, commitTime);
         if (sourceLines == null) {
             return null;
         }

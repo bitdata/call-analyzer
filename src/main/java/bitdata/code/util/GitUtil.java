@@ -19,10 +19,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GitUtil {
 
-    public static List<SourceLine> getDirtyLines(String gitDir, String pathPrefix, Date commitTime) throws IOException, GitAPIException {
+    private static final Pattern pattern = Pattern.compile(".*src/main/java/");
+
+    public static List<SourceLine> getDirtyLines(String gitDir, Date commitTime) throws IOException, GitAPIException {
         FileRepositoryBuilder fileRepositoryBuilder = new FileRepositoryBuilder();
         Repository repository = fileRepositoryBuilder.setGitDir(new File(gitDir))
                 .readEnvironment()
@@ -49,10 +53,10 @@ public class GitUtil {
         oldTreeIter.reset(reader, oldCommit.getTree().getId());
         CanonicalTreeParser newTreeIter = new CanonicalTreeParser();
         newTreeIter.reset(reader, newCommit.getTree().getId());
-        return parseSourceLines(repository, git, oldTreeIter, newTreeIter, pathPrefix);
+        return parseSourceLines(repository, git, oldTreeIter, newTreeIter);
     }
 
-    private static List<SourceLine> parseSourceLines(Repository repository, Git git, CanonicalTreeParser oldTreeIter, CanonicalTreeParser newTreeIter, String pathPrefix) throws GitAPIException, IOException {
+    private static List<SourceLine> parseSourceLines(Repository repository, Git git, CanonicalTreeParser oldTreeIter, CanonicalTreeParser newTreeIter) throws GitAPIException, IOException {
         List<SourceLine> list = new ArrayList<>();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         DiffFormatter df = new DiffFormatter(out);
@@ -60,7 +64,8 @@ public class GitUtil {
         List<DiffEntry> diffs = git.diff().setOldTree(oldTreeIter).setNewTree(newTreeIter).call();
         for (DiffEntry diff : diffs) {
             if (diff.getNewPath().endsWith(".java")) {
-                String path = diff.getNewPath().replace(pathPrefix, "");
+                Matcher matcher = pattern.matcher(diff.getNewPath());
+                String path = matcher.replaceAll("");
                 df.format(diff);
                 FileHeader fileHeader = df.toFileHeader(diff);
                 for (HunkHeader hunkHeader : fileHeader.getHunks()) {
