@@ -14,6 +14,8 @@ In large-scale projects, modifications may affect a significant number of method
 - k: The number of modification points covered by the methods within this specific group.
 - m: The cumulative number of modification points covered by the methods within this group and all previously outputted groups.
 
+It should be noted that, despite being grouped together, testing methods within the same group is not necessarily entirely equivalent due to variations in the parameters passed to these methods.
+
 ## Steps to Use
 
 1. Full recompile the target Java project for analysis (note that incremental compilation of the analyzed jar package might lead to inaccurate results).
