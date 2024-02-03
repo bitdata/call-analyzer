@@ -6,7 +6,12 @@ import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class BooleanTree<E> {
+/**
+ * used to check a method is a source in call graph
+ *
+ * @param <E> method type
+ */
+public class BooleanGraph<E> {
 
     private Map<E, Boolean> flagMap = new HashMap<>();
 
@@ -18,8 +23,16 @@ public class BooleanTree<E> {
         return flagMap.containsKey(element);
     }
 
-    public Collection<E> filter(boolean flag){
-        return flagMap.entrySet().stream().filter(e->e.getValue()==flag).map(Map.Entry::getKey).collect(Collectors.toList());
+    public Collection<E> getNodes() {
+        return flagMap.keySet();
+    }
+
+    public MultiValuedMap<E, E> getEdges(){
+        return childrenMap;
+    }
+
+    public Collection<E> filter(boolean flag) {
+        return flagMap.entrySet().stream().filter(e -> e.getValue() == flag).map(Map.Entry::getKey).collect(Collectors.toList());
     }
 
     public void setFlag(E element, boolean flag) {

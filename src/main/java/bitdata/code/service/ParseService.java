@@ -23,7 +23,7 @@ public class ParseService {
 
     private InvokeRepository invokeRepository;
 
-    private Map<ClassMethod, String> mappingRepository;
+    private Map<ClassMethod, String> annotationRepository;
 
     public void parseJars(Collection<String> jarFileNames) throws IOException {
         parseSource(jarFileNames);
@@ -41,22 +41,34 @@ public class ParseService {
             if (!StringUtils.isEmpty(className)) {
                 ClassMethod method = sourceRepository.getMethod(className, sourceLine.getLine());
                 if (method != null) {
-                    methods.add(method);
+                    if (!method.getMethodName().startsWith("<")) {
+                        methods.add(method);
+                    }
                 }
             }
         }
 
         List<String> list = new ArrayList<>();
-        for (ClassMethod method : invokeRepository.getOuterCallers(methods)) {
-            if (!method.getMethodName().startsWith("<")) {
-                String sourceFileName = sourceRepository.getSourceFileName(method.getClassName());
-                Integer line = sourceRepository.getLine(method);
-                String itemText = method.getClassName() + "." + method.getMethodName() + "(" + sourceFileName + ":" + line + ")";
-                String mapping = mappingRepository.get(method);
-                if (!StringUtils.isEmpty(mapping)) {
-                    itemText += " " + mapping;
+        Set<Integer> set = new HashSet<>();
+        DegreeRepository<ClassMethod> degreeRepository = invokeRepository.getSourceCallers(methods);
+        for (Integer degree : degreeRepository.listDegrees()) {
+            for (String key : degreeRepository.listKeys(degree)) {
+                set.addAll(degreeRepository.getSinks(key));
+                list.add(degree.toString() + "/" + set.size() + "/" + methods.size());
+                for (ClassMethod method : degreeRepository.listValues(degree, key)) {
+                    if (!method.getMethodName().startsWith("<")) {
+                        String sourceFileName = sourceRepository.getSourceFileName(method.getClassName());
+                        Integer line = sourceRepository.getLine(method);
+                        if (line != null) {
+                            String itemText = method.getClassName() + "." + method.getMethodName() + "(" + sourceFileName + ":" + line + ")";
+                            String mapping = annotationRepository.get(method);
+                            if (!StringUtils.isEmpty(mapping)) {
+                                itemText += " " + mapping;
+                            }
+                            list.add(itemText);
+                        }
+                    }
                 }
-                list.add(itemText);
             }
         }
         return list;
@@ -83,7 +95,7 @@ public class ParseService {
 
     private void parseInvoke(Collection<String> jarFileNames) throws IOException {
         invokeRepository = new InvokeRepository();
-        mappingRepository = new HashMap<>();
+        annotationRepository = new HashMap<>();
         parse(jarFileNames, (javaClass) -> {
             List<String> interfaceNames = new ArrayList<>();
             if (sourceRepository.contains(javaClass.getSuperclassName())) {
@@ -95,14 +107,18 @@ public class ParseService {
                 }
             }
             invokeRepository.addClass(javaClass.getClassName(), interfaceNames);
-            String classMapping = MappingUtil.parseClassMapping(javaClass);
+            String classMapping = AnnotationUtil.parseClassMapping(javaClass);
+            String classApiAnnotation = AnnotationUtil.parseClassApiAnnotation(javaClass);
             ConstantPoolGen constantPoolGen = new ConstantPoolGen(javaClass.getConstantPool());
             for (Method method : javaClass.getMethods()) {
                 ClassMethod classMethod = new ClassMethod(javaClass.getClassName(), method.getName(), method.getSignature());
-                String methodMapping = MappingUtil.parseMethodMapping(method, classMapping);
-                if (!StringUtils.isEmpty(methodMapping)) {
-                    mappingRepository.put(classMethod, classMapping + methodMapping);
+                if (classMapping != null) {
+                    String methodMapping = AnnotationUtil.parseMethodMapping(method);
+                    String methodApiAnnotation = AnnotationUtil.parseMethodApiAnnotation(method);
+                    annotationRepository.put(classMethod,
+                            classMapping + methodMapping + " | " + classApiAnnotation + "->" + methodApiAnnotation);
                 }
+                invokeRepository.addMethod(classMethod);
                 parseInvoke(javaClass, constantPoolGen, classMethod, method);
             }
         });

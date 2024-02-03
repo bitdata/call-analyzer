@@ -4,9 +4,15 @@
 
 ## Introduction
 
-Call-Analyzer is an assistant tool for testing Java programs that determines which methods are affected by changes in code. Suppose method A calls method B, and method B in turn calls method C, then modifying method C will affect both method A and method B. A single method may be invoked by numerous other methods. For simplicity, this tool only outputs the top-level affected methods, i.e. those that are not called by any other methods within the specified scope. Testers can thoroughly test these top-level methods to verify if the code modifications are correct. In Spring Boot-based applications, these typically include methods in Controllers or methods triggered by timers.
+Call-Analyzer is an assistant tool for testing Java programs that determines which methods are affected by code modifications and to determine what kind of testing is necessary to cover these changes effectively. Suppose method A calls method B, and method B in turn calls method C, then modifying method C will affect both method A and method B. A single method may be invoked by numerous other methods. For simplicity, this tool only outputs the top-level affected methods, i.e. those that are not called by any other methods within the specified scope. Testers can thoroughly test these top-level methods to verify if the code modifications are correct. In Spring Boot-based applications, these typically include methods in Controllers or methods triggered by timers.
 
 This tool is a pure Spring Boot application without a front-end interface (although readers are welcome to develop one themselves). Operations are performed by invoking methods of RestController through Swagger, or using tools like PostMan. It might seem rudimentary, but considering that most users are Java developers, this should not significantly impact its usability. This tool assumes that users are proficient in Java development.
+
+In large-scale projects, modifications may affect a significant number of methods, with even the upper-level method counts being substantial. It can be challenging for testers to verify all these methods individually. To address this issue, the output results are grouped and sorted based on the affected methods. Methods that share the same coverage scope are grouped together, and those with a broader coverage range are prioritized in the output. Prior to each group of methods being displayed, their coverage scope is presented in the format of k/m/n:
+
+- n: The total number of modification points requiring coverage, typically with one method equating to one modification point.
+- k: The number of modification points covered by the methods within this specific group.
+- m: The cumulative number of modification points covered by the methods within this group and all previously outputted groups.
 
 ## Steps to Use
 
@@ -56,6 +62,11 @@ Request Parameters
 | ---------- | --------------------------------------------------- | ------------ | -------- | ---------------------------------- |
 | commitTime | Starting modification time                          | query        | Yes      | Time in yyyy-MM-dd HH:mm:ss format |
 | gitDir     | Path to the git directory, usually ending with .git | query        | Yes      | String                             |
+
+## Unresolved Issues
+
+- Analysis of modifications made outside the context of methods.
+- Analysis of complex inheritance relationships, such as those involving generic classes.
 
 ## Acknowledgments
 

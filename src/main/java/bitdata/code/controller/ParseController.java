@@ -29,7 +29,7 @@ public class ParseController {
 
     @PostMapping("/parse-jars")
     @ApiOperation(value = "parse jars", httpMethod = "POST", produces = "application/json",
-            notes = "Parse Jar packages.")
+            notes = "Parse jar packages.")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "jarFileNames", value = "jar file path", required = true, dataType = "String", allowMultiple = true, paramType = "body")
     })
@@ -49,8 +49,8 @@ public class ParseController {
     }
 
     @PostMapping("/analyze-by-commit-time")
-    @ApiOperation(value = "get dirty outer callers", httpMethod = "POST", produces = "application/json",
-            notes = "find outer callers changed after some time")
+    @ApiOperation(value = "get dirty source callers", httpMethod = "POST", produces = "application/json",
+            notes = "find top-level methods changed after commit")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "gitDir", value = "git full path, always end with .git", required = true, dataType = "String", paramType = "query"),
             @ApiImplicitParam(name = "commitTime", value = "the time after which code committed, with yyyy-MM-dd HH:mm:ss format", required = true, dataType = "Date", paramType = "query")
