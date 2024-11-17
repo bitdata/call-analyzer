@@ -2,6 +2,8 @@
 
 [中文文档](README_CN.md)
 
+PS: The project has been discontinued and will be replaced by a redesigned tool of the same type in the future.
+
 ## Introduction
 
 Call-Analyzer is an assistant tool for testing Java programs that determines which methods are affected by code modifications and to determine what kind of testing is necessary to cover these changes effectively. Suppose method A calls method B, and method B in turn calls method C, then modifying method C will affect both method A and method B. A single method may be invoked by numerous other methods. For simplicity, this tool only outputs the top-level affected methods, i.e. those that are not called by any other methods within the specified scope. Testers can thoroughly test these top-level methods to verify if the code modifications are correct. In Spring Boot-based applications, these typically include methods in Controllers or methods triggered by timers.
